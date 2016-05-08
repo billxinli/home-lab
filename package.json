@@ -1,0 +1,31 @@
+{
+  "name": "home-lab",
+  "version": "1.0.0",
+  "description": "Home lab packages - Misc scripts for my home lab",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Bill Li",
+  "license": "MIT",
+  "dependencies": {
+    "async": "^2.0.0-rc.4",
+    "axios": "^0.11.0",
+    "cli-table": "^0.3.1",
+    "colors": "^1.1.2",
+    "diskusage": "^0.1.5",
+    "fs-extra": "^0.30.0",
+    "glob": "^7.0.3",
+    "inquirer": "^1.0.2",
+    "lodash": "^4.11.2",
+    "moviedb": "^0.2.3",
+    "os-homedir": "^1.0.1"
+  },
+  "bin": {
+    "find-extensions": "./bin/find-extensions.js",
+    "hdd-status": "./bin/hdd-status.js",
+    "search-movies": "./bin/search-movies.js",
+    "teksavvy-bandwidth": "./bin/teksavvy-bandwidth.js"
+  },
+  "preferGlobal": true
+}
