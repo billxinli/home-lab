@@ -1,0 +1,169 @@
+#!/usr/bin/env node
+
+var diskusage = require('diskusage')
+var inquirer = require('inquirer')
+var glob = require("glob")
+var _ = require('lodash')
+var async = require('async')
+var fs = require('fs-extra')
+var path = require('path')
+
+var byteCount = require('./../lib/byte-count')
+var copyDeleteSymlink = require('./../lib/copy-delete-symlink')
+var searchMovie = require('./../lib/search-movies')
+var nameCleaner = require('./../lib/filename-cleaner')
+
+var cwd = process.cwd()
+
+function isNotSampleFile (path, defaultSize, cb) {
+  var _defaultSize = 1024 * 1024 * 1024
+
+  if (!_.isUndefined(defaultSize)) {
+    _defaultSize = defaultSize * 1024 * 1024
+  }
+  fs.stat(path, function (err, results) {
+    if (err) {
+      cb(err, true)
+    } else {
+      if (path.match(/sample/gi)) {
+        cb(null, results.size > _defaultSize)
+      } else {
+        cb(null, true)
+      }
+    }
+  })
+}
+
+function isNotSymlink (path, cb) {
+  fs.lstat(path, function (err, results) {
+    if (err) {
+      cb(err, false)
+    } else {
+      cb(null, !results.isSymbolicLink())
+    }
+  })
+}
+
+var target = '/pool/movies/e'
+
+function isNotExistingTarget (target, cb) {
+  var fullPath = path.join(target.target, nameCleaner(target.name))
+  fs.lstat(fullPath, function (err, results) {
+    if (err) {
+      cb(null, true)
+    } else {
+      cb(null, false)
+    }
+  })
+}
+
+async.waterfall([
+  function (cb) {
+    glob("./**/*.+(" + [ 'mkv' ].join('|') + ")", { cwd: cwd }, cb)
+  },
+  function (files, cb) {
+    async.map(files, function (file, cb) {
+      cb(null, path.join(cwd, file))
+    }, cb)
+  },
+  function (files, cb) {
+    async.filter(files, isNotSymlink, cb)
+  },
+  function (files, cb) {
+    async.filter(files, function (file, cb) {
+      isNotSampleFile(file, 1024, cb)
+    }, cb)
+  },
+  function (files, cb) {
+
+
+files = files.slice(0, 20)
+
+
+    async.mapSeries(files,
+      function (file, cb) {
+        console.log('Processing: ', file)
+        var questions = [
+          {
+            type: 'input',
+            name: 'name',
+            message: 'Movie name',
+            default: function () {
+              searchMovie(file, this.async())
+            },
+            validate: function (value) {
+              return _.trim(value.length) > 0
+            }
+          }
+        ]
+        inquirer.prompt(questions)
+          .then(function (answers) {
+            answers.source = file
+            fs.lstat(file, function (err, info) {
+              answers.size = info.size
+              cb(null, answers)
+            })
+
+          })
+      }, cb)
+  },
+  function (files, cb) {
+    var potentialTargets = [ '/pool/movies/a', '/pool/movies/b', '/pool/movies/c', '/pool/movies/d', '/pool/movies/e', '/pool/movies/f', '/pool/movies/g', '/pool/movies/h' ,'/pool/movies/i',
+
+
+'/pool/movies/j',
+'/pool/movies/k',
+
+ ]
+    async.waterfall([
+      async.apply(function (potentialTargets, files, cb) {
+        async.map(potentialTargets, function (target, cb) {
+          diskusage.check(target, function (err, info) {
+            info.target = target
+            cb(null, info)
+          })
+        }, function (err, results) {
+          cb(err, results, files)
+        })
+      }, potentialTargets, files),
+
+      function (potentialTargets, files, cb) {
+        _.forEach(files, function (file) {
+          file.target = null
+          _.forEach(potentialTargets, function (potentialTarget) {
+            if (potentialTarget.available > file.size) {
+              file.target = potentialTarget.target
+              potentialTarget.available -= file.size
+              return false
+            }
+          })
+        })
+        files = _.reduce(files, function (files, file) {
+          if (file.target) {
+            files.push(file)
+          }
+          return files
+        }, [])
+        cb(null, files)
+      }
+    ], cb)
+  },
+  function (files, cb) {
+    async.filter(files, isNotExistingTarget, cb)
+  },
+  function (files, cb) {
+    setTimeout(function () {
+      cb(null, _.reject(files, function (file) { return file.name === 'skip' }))
+    }, 1)
+  },
+  function (files, cb) {
+    async.mapSeries(files,
+      function (file, cb) {
+        copyDeleteSymlink(file.source, file.target, file.name, cb)
+      }, cb)
+  }
+], function (err, results) {
+  console.log("=>", results)
+  console.log('Error', err)
+})
+

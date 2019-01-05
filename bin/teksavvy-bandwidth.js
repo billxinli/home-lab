@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-"use strict";
+'use strict'
 
-var teksavvyBandwidth = require('./../lib/teksavvy-bandwidth')
-var colors = require('colors')
-var _ = require('lodash')
+const teksavvyBandwidth = require('./../lib/teksavvy-bandwidth')
+const colors = require('colors')
+const _ = require('lodash')
 
-teksavvyBandwidth(function (err, result) {
+teksavvyBandwidth((err, result) => {
   if (err) {
     console.err('Error' + err)
   } else {
@@ -16,7 +16,7 @@ teksavvyBandwidth(function (err, result) {
     console.log('On Peak Download:', result.OnPeakDownload, 'GiB')
     console.log('Off Peak Upload:', result.OffPeakUpload, 'GiB')
     console.log('Off Peak Download:', result.OffPeakDownload, 'GiB')
-    console.log('Total Bandwidth:: ', (result.OnPeakUpload + result.OnPeakDownload + result.OffPeakUpload + result.OffPeakDownload).toFixed(2), 'GiB')
+    console.log('Total Bandwidth:', (result.OnPeakUpload + result.OnPeakDownload + result.OffPeakUpload + result.OffPeakDownload).toFixed(2), 'GiB')
   }
 })
 

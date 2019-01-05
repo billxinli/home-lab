@@ -1,50 +1,55 @@
 #!/usr/bin/env node
 
-"use strict";
+'use strict'
 
-var colors = require('colors')
-var exec = require('child_process').exec
-var Table = require('cli-table')
-var _ = require('lodash')
-var disk = require('diskusage')
-var path = require('path')
-var async = require('async')
-var homeLabConfig = require('../lib/get-config')
-var byteCount = require('../lib/byte-count')
+const colors = require('colors')
+const exec = require('child_process').exec
+const Table = require('cli-table')
+const _ = require('lodash')
+const disk = require('diskusage')
+const path = require('path')
+const async = require('async')
+const homeLabConfig = require('../lib/get-config')
+const byteCount = require('../lib/byte-count')
 
 if (isNaN(process.env.SUDO_UID)) {
   console.log('You need to run this as root'.red)
   process.exit(1)
 }
 
-var mounts = _.get(homeLabConfig, 'fstab.mount')
-var hostname = _.get(homeLabConfig, 'fstab.name')
+const mounts = _.get(homeLabConfig, 'fstab.mount')
+const hostname = _.get(homeLabConfig, 'fstab.name')
 
 async.waterfall([
-  async.apply(function (mounts, cb) {
-    async.map(mounts, function (mountRow, cb) {
-      async.map(mountRow, function (mountCell, cb) {
+  async.apply((mounts, cb) => {
+    async.map(mounts, (mountRow, cb) => {
+      async.map(mountRow, (mountCell, cb) => {
         if (_.isUndefined(mountCell.uuid)) {
           return cb(null, mountCell)
         }
-        var devUuid = path.join('/dev/disk/by-uuid/', mountCell.uuid)
+
+        const devUuid = path.join('/dev/disk/by-uuid/', mountCell.uuid)
         mountCell.devUuid = devUuid
 
         async.waterfall([
-          function (cb) {
-            exec(['smartctl -x -n standby -b ignore', devUuid].join(' '), function (err, stdout, stderr) {
+          (cb) => {
+            exec([ 'smartctl -x -n standby -b ignore', devUuid ].join(' '), (err, stdout, stderr) => {
               if (err && stdout.length === 0) {
                 cb(err)
               } else {
-                var smart = stdout.match(/SMART overall-health self-assessment test result: (.+?)\n/)
-                mountCell.smart = smart[1]
+                const smart = stdout.match(/SMART overall-health self-assessment test result: (.+?)\n/)
+                if (smart) {
+                  mountCell.smart = smart[ 1 ]
+                } else {
+                  mountCell.smart = 'FAIL'
+                }
                 mountCell.smartExit = _.get(err, 'code', 0)
                 cb(null, mountCell)
               }
             })
           },
-          function (mountCell, cb) {
-            exec(['hddtemp -n', devUuid].join(' '), function (err, stdout, stderr) {
+          (mountCell, cb) => {
+            exec([ 'hddtemp -n', devUuid ].join(' '), (err, stdout, stderr) => {
               if (err) {
                 cb(err)
               } else {
@@ -54,8 +59,8 @@ async.waterfall([
             })
           },
 
-          function (mountCell, cb) {
-            disk.check(mountCell.path, function (err, disk) {
+          (mountCell, cb) => {
+            disk.check(mountCell.path, (err, disk) => {
               if (err) {
                 cb(err)
               } else {
@@ -70,35 +75,37 @@ async.waterfall([
       }, cb)
     }, cb)
   }, mounts),
-  function (mounts, cb) {
-    async.reduce(mounts, {total: 0, used: 0, free: 0}, function (total, mountRow, cb) {
-      async.reduce(mountRow, total, function (total, mountCell, cb) {
-        if (_.isUndefined(mountCell.uuid)) {
-          return cb(null, total)
-        }
-        total.total += parseFloat(mountCell.total)
-        total.used += parseFloat(mountCell.used)
-        total.free += parseFloat(mountCell.free)
-        cb(null, total)
-      }, cb)
-    }, function (err, results) {
-      cb(err, {mounts: mounts, total: results})
-    })
+  (mounts, cb) => {
+    async.reduce(mounts, { total: 0, used: 0, free: 0 },
+      (total, mountRow, cb) => {
+        async.reduce(mountRow, total, (total, mountCell, cb) => {
+          if (_.isUndefined(mountCell.uuid)) {
+            return cb(null, total)
+          }
+          total.total += parseFloat(mountCell.total)
+          total.used += parseFloat(mountCell.used)
+          total.free += parseFloat(mountCell.free)
+          cb(null, total)
+        }, cb)
+      },
+      (err, results) => {
+        cb(err, { mounts: mounts, total: results })
+      })
   }
-], function (err, results) {
-  var table = new Table({colWidths: [38, 38, 38, 38]})
-  _.forEach(results.mounts, function (rowData) {
-    var row = []
-    _.forEach(rowData, function (cellData) {
+], (err, results) => {
+  const table = new Table({ colWidths: [ 38, 38, 38, 38 ] })
+  _.forEach(results.mounts, (rowData) => {
+    let row = []
+    _.forEach(rowData, (cellData) => {
       if (!_.isUndefined(cellData.uuid)) {
-        var cell = [
+        let cell = [
           cellData.uuid.bold,
-          ['Serial: ', cellData.serial].join(''),
-          ['Mount: ', cellData.path].join(''),
-          ['Free/U/T: ', byteCount(cellData.free, 1024), '/', byteCount(cellData.used, 1024), '/', byteCount(cellData.total, 1024)].join(''),
-          ['Status: ', [
+          [ 'Serial: ', cellData.serial ].join(''),
+          [ 'Mount: ', cellData.path ].join(''),
+          [ 'Free/U/T: ', byteCount(cellData.free, 1024), '/', byteCount(cellData.used, 1024), '/', byteCount(cellData.total, 1024) ].join(''),
+          [ 'Status: ', [
             (cellData.smart === 'PASSED') ? cellData.smart.green : cellData.smart.red,
-            ((cellData.temperature <= 39)) ? cellData.temperature.toString().green : cellData.temperature.toString().red].join(' | ')].join('')
+            ((cellData.temperature <= 39)) ? cellData.temperature.toString().green : cellData.temperature.toString().red ].join(' | ') ].join('')
         ]
         row.push(cell.join('\n'))
       } else {

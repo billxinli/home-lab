@@ -14,7 +14,7 @@
     "cli-table": "^0.3.1",
     "colors": "^1.1.2",
     "diskusage": "^0.1.5",
-    "fs-extra": "^0.30.0",
+    "fs-extra": "^5.0.0",
     "glob": "^7.0.3",
     "inquirer": "^1.0.2",
     "lodash": "^4.11.2",
@@ -22,6 +22,7 @@
     "os-homedir": "^1.0.1"
   },
   "bin": {
+    "copy-and-link": "./bin/copy-and-link.js",
     "find-extensions": "./bin/find-extensions.js",
     "hdd-status": "./bin/hdd-status.js",
     "search-movies": "./bin/search-movies.js",
